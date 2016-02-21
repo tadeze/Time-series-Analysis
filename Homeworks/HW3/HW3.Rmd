@@ -1,0 +1,66 @@
+---
+title: "Question #5 ARIMA simulation"
+author: "Tadesse Zemicheal"
+date: "January 27, 2016"
+output: pdf_document
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message = FALSE, 
+  warning = FALSE, results = "hide", fig.height = 3, fig.width = 6) 
+```
+
+## Simulation using ARMAacf function in R
+```{r}
+#1 simulate AR(2)
+library('ggplot2')
+#Theoretical ACF using ARMAacf
+arma11 <- ARMAacf(ar=c(0.8,-.2),lag.max = 10)
+qplot(x=0:10,ymin=0,
+			ymax=arma11,geom="linerange")+
+	geom_hline(yintercept=0,
+						 linetype="dashed")+ylim(c(-1,1))
+```
+
+(a) Theoretical estimation of ACF using ARIMAacf gives 0.699 at lag 1. 
+```{r,fig.width=5, fig.height = 2,fig.align='left'}
+# (b) 1 simulation model
+arm1<-arima.sim(model=list(ar=c(0.8,-0.2),ma=1,sd=1),30)
+qplot(1:30,arm1,geom="line")
+ar.acf <-acf(arm1,lag.max = 1,plot=F)
+```
+(b) Estimating using ACF using 1 simulation for length of 30 for lag of 1 gives 0.8.
+
++ (c)  On simulation of timeseries model length of 30 gives an autocorrelation of 0.8 with maximum lag of 1. In the other hand running 1000 simulation looks biased with small bias from the true value.   
+	+ $Bias(acf) = E(acf) - \hat{acf}$
+	+ $=0.719-0.667 = 0.088$
+
+```{r}
+#1000 simulation 
+ts.length = 30   #ts length
+arm1000<-replicate(1000,arima.sim(model=list(ar=c(0.8,-0.2),ma=1,sd=1),ts.length))
+```
+
+```{r,eval=FALSE}
+#estimate of simulated data 
+acf.as <- apply(arm1000,2,function(x){acf(x,lag.max =1)$acf[2]})
+acf.as.mean <- mean(acf.as)  #average overall simulation 
+```
+
++ (d)With longer time series of length =100, ACF = 0.777. It looks with increasing length of the timeseries the ACF value tends to increase. Still the value is biased with higher bias of 11.
+
++ (e)The variance with autocorrelation tends to decrease with increasing length. Variance result from simulation of section (c) with different length.
+
+| Time series length | Variance    |
+|--------------------|-------------|
+| 10                 | 0.0343274            |
+| 30                 | 0.0074787            |
+| 50                 | 0.003899            |
+| 100                | 0.001920 |
+
+## Appendix
+
+
+```{r, all-code, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+```

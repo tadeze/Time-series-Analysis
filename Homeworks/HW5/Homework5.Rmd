@@ -1,0 +1,114 @@
+---
+title: "Homework 5"
+author: "Tadesse Zemicheal"
+date: "February 16, 2016"
+output: pdf_document
+---
+
+---
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message = FALSE, 
+  warning = FALSE, results = "hide", fig.height = 3, fig.width = 6) 
+```
+# Fit a seasonal ARIMA model to the Johnson and Johnson quarterly returns
+
+```{r}
+library('astsa')
+library('dplyr')
+library('ggplot2')
+library('forecast')
+big_font <- theme_grey(base_size = 24)
+source("../common/fortify-ts.r")
+data(jj)
+jj <- fortify(jj) %>% rename(earning=x)
+
+qplot(time,earning, data = jj, geom = "line") +
+	big_font 
+
+jj$diff1 <- c(rep(NA,1),diff(jj$earning,lag=1))
+qplot(time,diff1,data=jj,geom="line") +big_font
+
+#seasonality 
+jj$diff_4 <- c(rep(NA, 4), diff(jj$diff1, lag = 4))
+qplot(time,diff_4, data = jj, geom = "line") +
+	big_font 
+#fit using auto.arima model
+fit <- forecast::auto.arima(jj$diff_4)  #this fits ARIMA(1,0,2) 
+```
+### Fit model
+
+```{r}
+#or simply fitting inthe original gives
+fit <-forecast::auto.arima(ts(jj$earning,frequency = 4)) # ARIM(1,1,2)(0,1,0)_4
+```
+Result from auto.arima shows ARIM(1,1,2)(0,1,0)$_4$ fits the model best. The diagnosis for the model can be shown as.
+
+
+### Diagnosis 
+```{r}
+par(mfrow=c(1,2))
+acf(fit$residuals)
+pacf(fit$residuals)
+plot(fit$residuals)
+qqnorm(fit$residuals)
+qqline(fit$residuals)
+```
+### Forecat 
+```{r}
+pred.df <- as.data.frame(predict(fit, n.ahead = 4*4))
+pred.df$time <- max(jj$time) + (1:(4*4))/4
+
+qplot(time, earning, data = jj, geom = "line") + 
+  geom_ribbon(aes(ymin = pred- 2*se, ymax = pred + 2*se, y = NULL), data = pred.df, alpha = 0.2) +
+  geom_line(aes(y = pred), data = pred.df) +
+  big_font
+```
+## 2 The Holt Winters Method
+
+### What decisions need to be made to use a Holt Winters forecasting approach? What starting values do you need to specify? What parameters need estimating?
+
++ If the data has trend an seasonality, we use Holdt Winters method instead of simple exponential smoothing method.
++ Examine a graph of the data to check whether additive or multiplicative appropriate 
++ Provide starting value for $L_1$ and $T_1$ as well as seasonal value for the first years, using few observations in the series. 
++ Estimate value of parameters $\alpha$, $\gamma$ , $\sigma$ by minimizing the squared error $\sum e^2_t$ for the fitted value 
++ Decide whether to normalize the seasonal indices at regular intervals.
++ Choose an automatic or non automatic approach
+
+The starting value that need to be specified are $L_1$, $T_1$ and seasonal values for the first years.  Then $\alpha$, $\gamma$ , $\sigma$ are estimated by minimizing squared error $\sum e^2_t$. 
+### Investigate the R function HoltWinters. How do you specify the decisions from above? How does the function choose starting values and estimate parameters?
+The R package for Holt-Winter is 
+```{r,eval=F}
+HoltWinters(x, alpha = NULL, beta = NULL, gamma = NULL,
+            seasonal = c("additive", "multiplicative"),
+            start.periods = 2, l.start = NULL, b.start = NULL,
+            s.start = NULL,
+            optim.start = c(alpha = 0.3, beta = 0.1, gamma = 0.1),
+            optim.control = list())
+```   
+Based from the R-package documentation the function choose starting values as follows. 
+For seasonal models, start values for a, b and s are inferred by performing a simple decomposition in trend and seasonal component using moving averages (see function decompose) on the start.periods first periods (a simple linear regression on the trend component is used for starting level and trend). For level/trend-models (no seasonal component), start values for a and b are x[2] and x[2] - x[1], respectively. For level-only models (ordinary exponential smoothing), the start value for a is x[1].
+### Use the function to produce forecasts (along with prediction intervals) for Johnson and Johnson returns in question 1.
+
+```{r}
+#library('HoltWinters')
+hwt <- HoltWinters(ts(jj$earning,frequency = 4), seasonal = "multiplicative", start.periods = 2)
+plot(hwt)
+```
+### Forecasting usng HoltWinters method. 
+
+```{r}
+#Forecasting
+# predict.hw <- predict(hwt,n.ahead = 12, prediction.interval = TRUE, level = 0.95)
+# predict.df <- data.frame(predict.hw)
+# qplot(time, earning, data = jj, geom = "line") + 
+#   geom_ribbon(aes(ymin =lwr,ymax =upr, y = NULL), data =pred, alpha = 0.2) +
+#   geom_line(aes(y = fit), data = pred.df) +
+#   big_font
+
+hw.fit <- hw(ts(jj$earning,frequency = 4), seasonal="multiplicative")
+plot(hw.fit)
+```
+
+```{r, all-code, ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
+
+```
